@@ -1,6 +1,5 @@
-# Island Survival
-This is a survival game set on procedurally generated islands.
-
+# Sabre Engine
+Sabre Engine is a game engine in C++ with C# scripting. It supports Mac and Windows.
 The `Scripts/` directory contains build scripts for Windows and Linux, and the `Vendor/` directory contains Premake binaries (currently version `5.0-beta2`).
 
 ## Getting Started
