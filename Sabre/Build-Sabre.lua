@@ -25,6 +25,17 @@ project "Sabre"
        defines { "WINDOWS" }
 		libdirs {"../Vendor/GLFW/Windows" }
 		links {"glfw3"}
+		
+	filter "system:macosx"
+       defines { "MACOSX" }
+		libdirs { "../Vendor/GLFW/MacUniversal" }
+		links {
+			"glfw",          -- your GLFW library
+			"Cocoa.framework",
+			"IOKit.framework",
+			"CoreVideo.framework",
+			"OpenGL.framework"
+		}
    filter "configurations:Debug"
        defines { "DEBUG" }
        runtime "Debug"
