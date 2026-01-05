@@ -14,7 +14,8 @@ project "Sabre"
    {
       "Source",
 	  "../Vendor/GLFW/include",
-	  "../Vendor/Glad/include"
+	  "../Vendor/Glad/include",
+	  "../Vendor/Assimp/include"
    }
 
    targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
@@ -23,8 +24,8 @@ project "Sabre"
    filter "system:windows"
        systemversion "latest"
        defines { "WINDOWS" }
-		libdirs {"../Vendor/GLFW/Windows" }
-		links {"glfw3"}
+		libdirs {"../Vendor/GLFW/Windows", "../Vendor/Assimp/Windows" }
+		links {"glfw3", "assimp-vc143-mt"}
 		
 	filter "system:macosx"
        defines { "MACOSX" }

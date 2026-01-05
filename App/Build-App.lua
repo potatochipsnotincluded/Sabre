@@ -17,7 +17,8 @@ project "App"
 	  -- Include Core
 	  "../Sabre/Source",
 	  "../Vendor/GLFW/include",
-	  "../Vendor/Glad/include"
+	  "../Vendor/Glad/include",
+	  "../Vendor/Assimp/include"
 	}
 
    links

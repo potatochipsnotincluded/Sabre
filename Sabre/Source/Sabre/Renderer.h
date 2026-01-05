@@ -9,6 +9,8 @@
 #include "Sabre/ShaderProgramme.h"
 #include "Sabre/Camera.h"
 #include "Sabre/Texture.h"
+#include "Sabre/Light.h"
+#include "Sabre/Material.h"
 
 #include <glm/glm.hpp>
 
@@ -43,6 +45,14 @@ namespace Sabre {
 			GL41::RenderMesh(mesh, shader, texture, position, rotation, scale, camera);
 #endif
 		}
+
+		inline void RenderMeshPBR(Mesh mesh, ShaderProgramme pbrShader,  Material* material, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale, Camera camera)
+		{
+#ifdef API_GL41
+			GL41::RenderMeshPBR(mesh, pbrShader, material, position, rotation, scale, camera);
+#endif
+		}
+
 	}
 
 }
