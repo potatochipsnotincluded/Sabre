@@ -2,7 +2,7 @@
 workspace "SabreEngine"
    architecture "x64"
    configurations { "Debug", "Release", "Dist" }
-   startproject "App"
+   startproject "SabreEditor"
 
    -- Workspace-wide build options for MSVC
    filter "system:windows"
@@ -15,3 +15,4 @@ group "Core"
 group ""
 
 include "App/Build-App.lua"
+include "SabreEditor/Build-SabreEditor.lua"

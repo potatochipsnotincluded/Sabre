@@ -9,6 +9,7 @@ namespace Sabre {
 		glm::vec3 Direction;
 		glm::vec3 Colour;
 		float Intensity;
+		float AmbientIntensity;
 	};
 
 	inline SunLight* g_CurrentSunLight;

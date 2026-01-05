@@ -1,4 +1,5 @@
 #include "RendererGL41.h"
+#include "Sabre/Window.h"
 
 namespace Sabre {
 
@@ -18,6 +19,8 @@ namespace Sabre {
 
 		void ClearScreen(glm::vec4 colour)
 		{
+            glViewport(0, 0, Sabre::Window::GetWindowSize().x, Sabre::Window::GetWindowSize().y);
+
 			glClearColor(colour.r, colour.g, colour.b, colour.a);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		}
@@ -132,6 +135,7 @@ namespace Sabre {
             int32_t lightDirectionLoc = glGetUniformLocation(shaderProgramme.GetGLID(), "lightDir");
             int32_t lightColourLoc = glGetUniformLocation(shaderProgramme.GetGLID(), "lightColour");
             int32_t lightIntensityLoc = glGetUniformLocation(shaderProgramme.GetGLID(), "lightIntensity");
+            int32_t ambientIntensityLoc = glGetUniformLocation(shaderProgramme.GetGLID(), "ambientIntensity");
 
             int32_t viewPosLoc = glGetUniformLocation(shaderProgramme.GetGLID(), "viewPos");
 
@@ -152,6 +156,7 @@ namespace Sabre {
             glUniform3f(lightDirectionLoc, GetSunLight()->Direction.x, GetSunLight()->Direction.y, GetSunLight()->Direction.z);
             glUniform3f(lightColourLoc, GetSunLight()->Colour.x, GetSunLight()->Colour.y, GetSunLight()->Colour.z);
             glUniform1f(lightIntensityLoc, GetSunLight()->Intensity);
+            glUniform1f(ambientIntensityLoc, GetSunLight()->AmbientIntensity);
 
             glUniform1f(metallicLoc, material->Metallic);
             glUniform1f(smoothnessLoc, material->Smoothness);
