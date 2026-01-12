@@ -22,6 +22,8 @@ namespace Sabre {
 
 		bool IsKeyDown(uint32_t key);
 
+		void RequestQuit();
+
 		// Private
 		inline GLFWwindow* m_Window;
 

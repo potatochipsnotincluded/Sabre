@@ -52,7 +52,10 @@ namespace Sabre {
 			aiProcess_FlipUVs |
 			aiProcess_GenSmoothNormals);
 
-        SABRE_ASSERT(scene && scene->HasMeshes(), "Failed to load model! {}", importer.GetErrorString());
+        if (scene == nullptr || !scene->HasMeshes())
+        {
+            return LoadMesh(GetAssetFile("Assets/cube.glb"));
+        }
 
         uint32_t vertexOffset = 0;
 

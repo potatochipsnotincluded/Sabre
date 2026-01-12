@@ -32,6 +32,11 @@ namespace Sabre {
 			return glfwWindowShouldClose(m_Window);
 		}
 
+		void RequestQuit()
+		{
+			glfwSetWindowShouldClose(m_Window, true);
+		}
+
 		void EndFrame()
 		{
 			glfwSwapBuffers(m_Window);

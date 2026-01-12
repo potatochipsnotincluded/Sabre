@@ -1,6 +1,7 @@
 #include "Texture.h"
 #include "Sabre/Platform.h"
 #include "Sabre/Debug.h"
+#include "Sabre/Data.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -17,7 +18,10 @@ namespace Sabre {
 
 		m_Data = stbi_load(filepath.string().c_str(), &m_Width, &m_Height, &m_Channels, 0);
 
-		SABRE_ASSERT(m_Data, "Couldn't load texture! Maybe actually learn how files work?");
+		if (!m_Data)
+		{
+			m_Data = stbi_load(GetAssetFile("Assets/placeholder.jpg").string().c_str(), &m_Width, &m_Height, &m_Channels, 0);
+		}
 
 #ifdef API_GL41
 		GLLoadTexture();

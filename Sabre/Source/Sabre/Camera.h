@@ -21,4 +21,6 @@ namespace Sabre {
 		glm::mat4 m_Projection;
 	};
 
+	inline Camera* g_MainCamera;
+
 }
