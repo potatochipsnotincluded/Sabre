@@ -8,6 +8,7 @@
 #include "Sabre/Mesh.h"
 #include "Sabre/Material.h"
 #include "Sabre/Renderer.h"
+#include "Sabre/Project.h"
 
 #include "imgui/imgui.h"
 
@@ -29,7 +30,7 @@ namespace Sabre {
 		glm::vec3 Rotation;
 		glm::vec3 Scale;
 
-		static void RenderImGui(TransformComponent& self);
+		static void RenderImGui(TransformComponent& self, Project& project);
 	};
 
 	struct TagComponent
@@ -52,7 +53,7 @@ namespace Sabre {
 			TexturePath = albedoPath.string();
 		}
 
-		static void RenderImGui(MeshComponent& self);
+		static void RenderImGui(MeshComponent& self, Project& project);
 	};
 
 

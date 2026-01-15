@@ -141,8 +141,11 @@ void EditorLayer::OnInit()
 	SABRE_LOG(Severity::Debug, "Using API: OpenGL 4.1");
 #endif
 
+	m_CurrentProject = Sabre::Project("", "");
+
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+
 
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -195,160 +198,171 @@ void EditorLayer::OnUpdate()
 
 	Sabre::Renderer::ClearScreen(m_ClearColour);
 
-#ifdef API_GL41
-	ImGui_ImplOpenGL3_NewFrame();
-#endif
-#ifdef WINDOWS
-	ImGui_ImplGlfw_NewFrame();
-#endif
-	ImGui::NewFrame();
-
-	ImGui::DockSpaceOverViewport(0U, 0, ImGuiDockNodeFlags_PassthruCentralNode);
-
-	static bool show_demo_window = true;
-
-	if (show_demo_window)
-		ImGui::ShowDemoWindow(&show_demo_window);
-
-	if (ImGui::BeginMainMenuBar())
-	{
-		if (ImGui::BeginMenu("Sabre"))
-		{
-			if (ImGui::MenuItem("Close"))
-				Sabre::Window::RequestQuit();
-			ImGui::EndMenu();
-		}
-		if (ImGui::BeginMenu("Scene"))
-		{
-			if (ImGui::MenuItem("Add Entity"))
-				CreateEntityDefault(&m_Scene, m_DefaultTag);
-			ImGui::EndMenu();
-		}
-
-		ImGui::EndMainMenuBar();
-	}
-
-	ImGui::Begin("Scene Settings");
-
-	float colour[4] = { m_ClearColour.r, m_ClearColour.g, m_ClearColour.b, m_ClearColour.a };
-
-	ImGui::Text("Clear Colour: ");
-	ImGui::SameLine();
-	ImGui::ColorEdit4("###m_Sceneclearcolour", colour);
-
-	ImGui::Text("Ambient: ");
-	ImGui::SameLine();
-	ImGui::DragFloat("###m_Sceneambient", &m_SunLight.AmbientIntensity, 0.025f);
-
-	m_ClearColour.r = colour[0];
-	m_ClearColour.g = colour[1];
-	m_ClearColour.b = colour[2];
-	m_ClearColour.a = colour[3];
-
-	ImGui::PushFont(m_BoldFont);
-	if (ImGui::CollapsingHeader("Sun Light"))
-	{
-		ImGui::PopFont();
-
-		ImGui::Text("Colour "); ImGui::SameLine();
-		ImGui::ColorEdit3("###sabcollightm_Scene", glm::value_ptr(Sabre::GetSunLight()->Colour));
-
-		Sabre::InputVec3("Direction", (int32_t)(&Sabre::GetSunLight()->Direction), 0.001f, Sabre::GetSunLight()->Direction);
-
-		ImGui::Text("Intensity "); ImGui::SameLine();
-		ImGui::DragFloat("###sabintlightm_Scene", &Sabre::GetSunLight()->Intensity, 0.01f, 0, 5);
-	}
-	else
-	{
-		ImGui::PopFont();
-	}
-
-	ImGui::End();
-
-	static Sabre::UUID selectedEntity = 0xFFFFFF;
-	ImGui::PushFont(m_NormalFont);
-
-	ImGui::Begin("Scene");
-
-	for (Sabre::UUID entity : m_Scene.GetAllEntities())
-	{
-		Sabre::Entity asEntity = m_Scene.GetEntity(entity);
-		std::string& tag = m_Scene.GetComponent<Sabre::TagComponent>(asEntity).Tag;
-
-		ImGui::PushID(entity);
-
-		if (ImGui::Selectable(tag.c_str(), entity == selectedEntity))
-		{
-			selectedEntity = entity;
-		}
-		ImGui::PopID();
-
-	}
-	ImGui::PopFont();
-
-	ImGui::End();
-
-	ImGui::Begin("Inspector");
-
-	if (selectedEntity != 0xFFFFFF)
-	{
-		ImGui::PushFont(m_BoldFont);
-
-		Sabre::Entity asEntity = m_Scene.GetEntity(selectedEntity);
-		auto& tagC = m_Scene.GetComponent<Sabre::TagComponent>(asEntity);
-
-		Sabre::InputChar("###sabentitytag", &tagC.Tag);
-
-
-		ImGui::PopFont();
-
-		auto& transform = m_Scene.GetComponent<Sabre::TransformComponent>(asEntity);
-		Sabre::TransformComponent::RenderImGui(transform);
-
-		if (m_Scene.HasComponent<Sabre::MeshComponent>(asEntity))
-		{
-			Sabre::MeshComponent::RenderImGui(m_Scene.GetComponent<Sabre::MeshComponent>(asEntity));
-		}
-
-		auto& style = ImGui::GetStyle();
-		float textWidth = ImGui::CalcTextSize("Add Component").x + style.FramePadding.x;
-
-		ImGui::SetCursorPosX((ImGui::GetWindowWidth() / 2) - (textWidth / 2));
-
-		if (ImGui::Button("Add Component"))
-		{
-			ImGui::OpenPopup("AddComponentPopup");
-		}
-
-		if (ImGui::BeginPopup("AddComponentPopup"))
-		{
-			if (ImGui::Button("Mesh Component"))
-			{
-				m_Scene.AddComponent<Sabre::MeshComponent>(asEntity, asEntity, "", "", 0, 0);
-			}
-
-			ImGui::EndPopup();
-		}
-
-	}
-	ImGui::End();
-
-
-	m_Scene.OnRender();
-
-	ImGui::Render();
-#ifdef API_GL41
-	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-#endif
-#ifdef WINDOWS
-	GLFWwindow* backup_current_context = glfwGetCurrentContext();
-	ImGui::UpdatePlatformWindows();
-	ImGui::RenderPlatformWindowsDefault();
-	glfwMakeContextCurrent(backup_current_context);
-#endif
-	Sabre::Window::EndFrame();
+	DrawImGui();
 }
 
 void EditorLayer::OnRender()
 {
+	m_Scene.OnRender();
+}
+
+void EditorLayer::DrawImGui()
+{
+	if (m_ProjectCreated)
+	{
+		static bool show_demo_window = true;
+
+		if (show_demo_window)
+			ImGui::ShowDemoWindow(&show_demo_window);
+
+		if (ImGui::BeginMainMenuBar())
+		{
+			if (ImGui::BeginMenu("Sabre"))
+			{
+				if (ImGui::MenuItem("Close"))
+					Sabre::Window::RequestQuit();
+				ImGui::EndMenu();
+			}
+			if (ImGui::BeginMenu("Scene"))
+			{
+				if (ImGui::MenuItem("Add Entity"))
+					CreateEntityDefault(&m_Scene, m_DefaultTag);
+				ImGui::EndMenu();
+			}
+
+			ImGui::EndMainMenuBar();
+		}
+
+		ImGui::Begin("Scene Settings");
+
+		float colour[4] = { m_ClearColour.r, m_ClearColour.g, m_ClearColour.b, m_ClearColour.a };
+
+		ImGui::Text("Clear Colour: ");
+		ImGui::SameLine();
+		ImGui::ColorEdit4("###m_Sceneclearcolour", colour);
+
+		ImGui::Text("Ambient: ");
+		ImGui::SameLine();
+		ImGui::DragFloat("###m_Sceneambient", &m_SunLight.AmbientIntensity, 0.025f);
+
+		m_ClearColour.r = colour[0];
+		m_ClearColour.g = colour[1];
+		m_ClearColour.b = colour[2];
+		m_ClearColour.a = colour[3];
+
+		ImGui::PushFont(m_BoldFont);
+		if (ImGui::CollapsingHeader("Sun Light"))
+		{
+			ImGui::PopFont();
+
+			ImGui::Text("Colour "); ImGui::SameLine();
+			ImGui::ColorEdit3("###sabcollightm_Scene", glm::value_ptr(Sabre::GetSunLight()->Colour));
+
+			Sabre::InputVec3("Direction", (int32_t)(&Sabre::GetSunLight()->Direction), 0.001f, Sabre::GetSunLight()->Direction);
+
+			ImGui::Text("Intensity "); ImGui::SameLine();
+			ImGui::DragFloat("###sabintlightm_Scene", &Sabre::GetSunLight()->Intensity, 0.01f, 0, 5);
+		}
+		else
+		{
+			ImGui::PopFont();
+		}
+
+		ImGui::End();
+
+		static Sabre::UUID selectedEntity = 0xFFFFFF;
+		ImGui::PushFont(m_NormalFont);
+
+		ImGui::Begin("Scene");
+
+		for (Sabre::UUID entity : m_Scene.GetAllEntities())
+		{
+			Sabre::Entity asEntity = m_Scene.GetEntity(entity);
+			std::string& tag = m_Scene.GetComponent<Sabre::TagComponent>(asEntity).Tag;
+
+			ImGui::PushID(entity);
+
+			if (ImGui::Selectable(tag.c_str(), entity == selectedEntity))
+			{
+				selectedEntity = entity;
+			}
+			ImGui::PopID();
+
+		}
+		ImGui::PopFont();
+
+		ImGui::End();
+
+		ImGui::Begin("Inspector");
+
+		if (selectedEntity != 0xFFFFFF)
+		{
+			ImGui::PushFont(m_BoldFont);
+
+			Sabre::Entity asEntity = m_Scene.GetEntity(selectedEntity);
+			auto& tagC = m_Scene.GetComponent<Sabre::TagComponent>(asEntity);
+
+			Sabre::InputChar("###sabentitytag", &tagC.Tag);
+
+
+			ImGui::PopFont();
+
+			auto& transform = m_Scene.GetComponent<Sabre::TransformComponent>(asEntity);
+			Sabre::TransformComponent::RenderImGui(transform, m_CurrentProject);
+
+			if (m_Scene.HasComponent<Sabre::MeshComponent>(asEntity))
+			{
+				Sabre::MeshComponent::RenderImGui(m_Scene.GetComponent<Sabre::MeshComponent>(asEntity), m_CurrentProject);
+			}
+
+			auto& style = ImGui::GetStyle();
+			float textWidth = ImGui::CalcTextSize("Add Component").x + style.FramePadding.x;
+
+			ImGui::SetCursorPosX((ImGui::GetWindowWidth() / 2) - (textWidth / 2));
+
+			if (ImGui::Button("Add Component"))
+			{
+				ImGui::OpenPopup("AddComponentPopup");
+			}
+
+			if (ImGui::BeginPopup("AddComponentPopup"))
+			{
+				if (ImGui::Button("Mesh Component"))
+				{
+					m_Scene.AddComponent<Sabre::MeshComponent>(asEntity, asEntity, "", "", 0, 0);
+				}
+
+				ImGui::EndPopup();
+			}
+
+		}
+		ImGui::End();
+	}
+	else
+	{
+		ImGui::Begin("Select Project");
+
+		ImGui::Text("No project loaded! Please select one.");
+
+		char* bufP = m_CurrentProject.FilePath.string().data();
+
+		ImGui::Text("Project Path "); ImGui::SameLine();
+		ImGui::InputText("###projpath", bufP, 260);
+
+		m_CurrentProject.FilePath = std::string(bufP);
+
+		char* bufN = m_CurrentProject.Name.data();
+
+		ImGui::Text("Project Name "); ImGui::SameLine();
+		ImGui::InputText("###projnam", bufN, 260);
+
+		m_CurrentProject.Name = std::string(bufN);
+
+		if (ImGui::Button("Load!"))
+		{
+			m_ProjectCreated = true;
+		}
+
+		ImGui::End();
+	}
 }

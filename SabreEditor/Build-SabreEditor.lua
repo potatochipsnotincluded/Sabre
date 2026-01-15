@@ -6,10 +6,13 @@ project "SabreEditor"
    staticruntime "off"
 
    files { "Source/**.h", "Source/**.cpp" }
-	defines
-	{
-		'SOLUTION_DIR="' .. _WORKING_DIR .. '"'
-	}
+local root = os.getenv("SABRE_INSTALL_LOC")
+root = root:gsub("\\", "\\\\")
+
+defines
+{
+    'SOLUTION_DIR="' .. root .. '"'
+}
    includedirs
    {
       "Source",

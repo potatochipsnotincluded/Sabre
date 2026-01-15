@@ -10,7 +10,8 @@ public:
 	virtual void OnInit() override;
 	virtual void OnUpdate() override;
 	virtual void OnRender() override;
-
+private:
+	void DrawImGui();
 private:
 	std::string m_DefaultTag = "New Entity";
 	Sabre::SunLight m_SunLight;
@@ -24,4 +25,8 @@ private:
 	ImFont* m_BoldFont;
 
 	bool m_ShouldClose = false;
+
+	Sabre::Project m_CurrentProject;
+
+	bool m_ProjectCreated = false;
 };

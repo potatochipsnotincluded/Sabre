@@ -108,7 +108,7 @@ namespace Sabre {
 		);
 	}
 
-	void TransformComponent::RenderImGui(TransformComponent& self)
+	void TransformComponent::RenderImGui(TransformComponent& self, Project& project)
 	{
 		if (ImGui::CollapsingHeader("Transform Component"))
 		{
@@ -118,7 +118,7 @@ namespace Sabre {
 		}
 	}
 
-	void MeshComponent::RenderImGui(MeshComponent& self)
+	void MeshComponent::RenderImGui(MeshComponent& self, Project& project)
 	{
 		if (ImGui::CollapsingHeader("Mesh Component"))
 		{
@@ -130,8 +130,8 @@ namespace Sabre {
 
 			if (ImGui::Button("Reload"))
 			{
-				self.EntityMesh = LoadMesh(GetAssetFile(self.MeshPath));
-				self.EntityMaterial = Material(GetAssetFile(self.TexturePath), self.EntityMaterial.Smoothness, self.EntityMaterial.Metallic);
+				self.EntityMesh = LoadMesh(project.FilePath / self.MeshPath);
+				self.EntityMaterial = Material(project.FilePath / self.TexturePath, self.EntityMaterial.Smoothness, self.EntityMaterial.Metallic);
 			}
 
 			ImGui::Text("Smoothness "); ImGui::SameLine();
