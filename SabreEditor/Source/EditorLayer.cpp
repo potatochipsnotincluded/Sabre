@@ -285,14 +285,17 @@ void EditorLayer::DrawImGui()
 		if (show_demo_window)
 			ImGui::ShowDemoWindow(&show_demo_window);
 
+		static bool s_OpenSavePopup = false;
+		static bool s_OpenLoadPopup = false;
+
 		if (ImGui::BeginMainMenuBar())
 		{
 			if (ImGui::BeginMenu("Sabre"))
 			{
-				if (ImGui::MenuItem("Save"))
-					Serialize();
-				if (ImGui::MenuItem("Load"))
-					Deserialize();
+				if (ImGui::MenuItem("Save Level"))
+					s_OpenSavePopup = true;
+				if (ImGui::MenuItem("Load Level"))
+					s_OpenLoadPopup = true;
 				if (ImGui::MenuItem("Close"))
 					Sabre::Window::RequestQuit();
 				ImGui::EndMenu();
@@ -304,8 +307,55 @@ void EditorLayer::DrawImGui()
 				ImGui::EndMenu();
 			}
 
+
+
 			ImGui::EndMainMenuBar();
 		}
+		
+		if (s_OpenSavePopup)
+		{
+			ImGui::OpenPopup("SaveLevelPopup");
+			s_OpenSavePopup = false;
+		}
+
+		if (s_OpenLoadPopup)
+		{
+			ImGui::OpenPopup("LoadLevelPopup");
+			s_OpenLoadPopup = false;
+		}
+
+		if (ImGui::BeginPopupModal("SaveLevelPopup"))
+		{
+			static char scene[260] = {};
+			ImGui::Text("Scene"); ImGui::SameLine();
+			ImGui::InputText("###scenepath", scene, 260);
+
+			std::filesystem::path scenePath = std::string(scene);
+
+			if (ImGui::Button("Save!"))
+			{
+				Serialize(scenePath);
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::EndPopup();
+		}
+
+		if (ImGui::BeginPopupModal("LoadLevelPopup"))
+		{
+			static char scene[260] = {};
+			ImGui::Text("Scene"); ImGui::SameLine();
+			ImGui::InputText("###scenepath", scene, 260);
+
+			std::filesystem::path scenePath = std::string(scene);
+
+			if (ImGui::Button("Load!"))
+			{
+				Deserialize(scenePath);
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::EndPopup();
+		}
+
 
 		ImGui::Begin("Scene Settings");
 
@@ -444,7 +494,7 @@ void EditorLayer::DrawImGui()
 	}
 }
 
-void EditorLayer::Serialize()
+void EditorLayer::Serialize(const std::filesystem::path& sceneFile)
 {
 	json j;
 
@@ -472,16 +522,16 @@ void EditorLayer::Serialize()
 		}
 	}
 
-	std::ofstream file = std::ofstream(m_CurrentProject.FilePath / (m_CurrentProject.Name + ".sabprj")); // TODO: Shouldn't save scene to project file
+	std::ofstream file = std::ofstream(m_CurrentProject.FilePath / sceneFile); // TODO: Shouldn't save scene to project file
 	file << std::setw(4) << j << std::endl;
 }
 
-void EditorLayer::Deserialize()
+void EditorLayer::Deserialize(const std::filesystem::path& scenePath)
 {
 	m_SelectedEntity = 0xFFFFFF;
 
 	json j;
-	std::ifstream i = std::ifstream(m_CurrentProject.FilePath / (m_CurrentProject.Name + ".sabprj"));
+	std::ifstream i = std::ifstream(m_CurrentProject.FilePath / scenePath);
 	i >> j;
 	
 	m_SunLight.AmbientIntensity = j["SceneSettings"]["Ambient"];

@@ -13,8 +13,8 @@ public:
 private:
 	void DrawImGui();
 
-	void Serialize();
-	void Deserialize();
+	void Serialize(const std::filesystem::path& scenePath);
+	void Deserialize(const std::filesystem::path& scenePath);
 private:
 	std::string m_DefaultTag = "New Entity";
 	Sabre::SunLight m_SunLight;
