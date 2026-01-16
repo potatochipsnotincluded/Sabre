@@ -291,6 +291,8 @@ void EditorLayer::DrawImGui()
 			{
 				if (ImGui::MenuItem("Save"))
 					Serialize();
+				if (ImGui::MenuItem("Load"))
+					Deserialize();
 				if (ImGui::MenuItem("Close"))
 					Sabre::Window::RequestQuit();
 				ImGui::EndMenu();
@@ -342,7 +344,6 @@ void EditorLayer::DrawImGui()
 
 		ImGui::End();
 
-		static Sabre::UUID selectedEntity = 0xFFFFFF;
 		ImGui::PushFont(m_NormalFont);
 
 		ImGui::Begin("Scene");
@@ -354,9 +355,9 @@ void EditorLayer::DrawImGui()
 
 			ImGui::PushID(entity);
 
-			if (ImGui::Selectable(tag.c_str(), entity == selectedEntity))
+			if (ImGui::Selectable(tag.c_str(), entity == m_SelectedEntity))
 			{
-				selectedEntity = entity;
+				m_SelectedEntity = entity;
 			}
 			ImGui::PopID();
 
@@ -367,11 +368,11 @@ void EditorLayer::DrawImGui()
 
 		ImGui::Begin("Inspector");
 
-		if (selectedEntity != 0xFFFFFF)
+		if (m_SelectedEntity != 0xFFFFFF)
 		{
 			ImGui::PushFont(m_BoldFont);
 
-			Sabre::Entity asEntity = m_Scene.GetEntity(selectedEntity);
+			Sabre::Entity asEntity = m_Scene.GetEntity(m_SelectedEntity);
 			auto& tagC = m_Scene.GetComponent<Sabre::TagComponent>(asEntity);
 
 			Sabre::InputChar("###sabentitytag", &tagC.Tag);
@@ -401,7 +402,7 @@ void EditorLayer::DrawImGui()
 			{
 				if (ImGui::Button("Mesh Component"))
 				{
-					m_Scene.AddComponent<Sabre::MeshComponent>(asEntity, asEntity, "", "", 0, 0);
+					m_Scene.AddComponent<Sabre::MeshComponent>(asEntity, asEntity, m_CurrentProject.FilePath, "", "", 0, 0);
 				}
 
 				ImGui::EndPopup();
@@ -471,6 +472,75 @@ void EditorLayer::Serialize()
 		}
 	}
 
-	std::ofstream file = std::ofstream(m_CurrentProject.FilePath / (m_CurrentProject.Name + ".sabprj"));
+	std::ofstream file = std::ofstream(m_CurrentProject.FilePath / (m_CurrentProject.Name + ".sabprj")); // TODO: Shouldn't save scene to project file
 	file << std::setw(4) << j << std::endl;
+}
+
+void EditorLayer::Deserialize()
+{
+	m_SelectedEntity = 0xFFFFFF;
+
+	json j;
+	std::ifstream i = std::ifstream(m_CurrentProject.FilePath / (m_CurrentProject.Name + ".sabprj"));
+	i >> j;
+	
+	m_SunLight.AmbientIntensity = j["SceneSettings"]["Ambient"];
+	m_ClearColour.r = j["SceneSettings"]["ClearColour"][0];
+	m_ClearColour.g = j["SceneSettings"]["ClearColour"][1];
+	m_ClearColour.b = j["SceneSettings"]["ClearColour"][2];
+	m_ClearColour.a = j["SceneSettings"]["ClearColour"][3];
+
+	Sabre::GetSunLight()->Colour.r = j["SunLight"]["Colour"][0];
+	Sabre::GetSunLight()->Colour.g = j["SunLight"]["Colour"][1];
+	Sabre::GetSunLight()->Colour.b = j["SunLight"]["Colour"][2];
+
+	Sabre::GetSunLight()->Direction.x = j["SunLight"]["Direction"][0];
+	Sabre::GetSunLight()->Direction.y = j["SunLight"]["Direction"][1];
+	Sabre::GetSunLight()->Direction.z = j["SunLight"]["Direction"][2];
+	Sabre::GetSunLight()->Intensity = j["SunLight"]["Intensity"];
+
+	m_Scene.Clear();
+	
+	std::vector<std::string> entityList;
+	for (auto it = j["Entities"].begin(); it != j["Entities"].end(); ++it)
+	{
+		entityList.push_back(it.key());
+	}
+
+	for (std::string uuidStr : entityList)
+	{
+		Sabre::UUID uuid = std::stoul(uuidStr);
+
+		Sabre::Entity entity = m_Scene.AddEntityWithUUID(uuid);
+		m_Scene.AddComponent<Sabre::TagComponent>(entity, j["Entities"][std::to_string(uuid)]["TagComponent"]["Tag"].get<std::string>());
+
+		m_Scene.AddComponent<Sabre::TransformComponent>(entity, glm::vec3(), glm::vec3(), glm::vec3());
+		auto& trc = m_Scene.GetComponent<Sabre::TransformComponent>(entity);
+		trc.Position = glm::vec3(
+			j["Entities"][std::to_string(uuid)]["TransformComponent"]["Position"][0],
+			j["Entities"][std::to_string(uuid)]["TransformComponent"]["Position"][1],
+			j["Entities"][std::to_string(uuid)]["TransformComponent"]["Position"][2]
+		);
+
+		trc.Rotation = glm::vec3(
+			j["Entities"][std::to_string(uuid)]["TransformComponent"]["Rotation"][0],
+			j["Entities"][std::to_string(uuid)]["TransformComponent"]["Rotation"][1],
+			j["Entities"][std::to_string(uuid)]["TransformComponent"]["Rotation"][2]
+		);
+
+		trc.Scale = glm::vec3(
+			j["Entities"][std::to_string(uuid)]["TransformComponent"]["Scale"][0],
+			j["Entities"][std::to_string(uuid)]["TransformComponent"]["Scale"][1],
+			j["Entities"][std::to_string(uuid)]["TransformComponent"]["Scale"][2]
+		);
+
+		if (j["Entities"][std::to_string(uuid)].contains("MeshComponent"))
+		{
+			m_Scene.AddComponent<Sabre::MeshComponent>(entity, entity, m_CurrentProject.FilePath,
+				j["Entities"][std::to_string(uuid)]["MeshComponent"]["MeshPath"].get<std::string>(),
+				j["Entities"][std::to_string(uuid)]["MeshComponent"]["TexturePath"].get<std::string>(),
+				j["Entities"][std::to_string(uuid)]["MeshComponent"]["Metallic"].get<float>(),
+				j["Entities"][std::to_string(uuid)]["MeshComponent"]["Smoothness"].get<float>());
+		}
+	}
 }

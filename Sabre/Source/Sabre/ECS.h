@@ -54,7 +54,7 @@ namespace Sabre {
 		std::string MeshPath; // For editor use only
 		std::string TexturePath; // For editor use only
 
-		inline MeshComponent(Entity owner, const std::filesystem::path& meshPath, const std::filesystem::path& albedoPath, float metallic, float smoothness) : EntityMesh(LoadMesh(GetAssetFile(meshPath))), EntityMaterial(GetAssetFile(albedoPath), smoothness, metallic), Owner(owner) {
+		inline MeshComponent(Entity owner, const std::filesystem::path& project, const std::filesystem::path& meshPath, const std::filesystem::path& albedoPath, float metallic, float smoothness) : EntityMesh(LoadMesh(project / meshPath)), EntityMaterial(project / albedoPath, smoothness, metallic), Owner(owner) {
 			MeshPath = meshPath.string();
 			TexturePath = albedoPath.string();
 		}
@@ -74,9 +74,12 @@ namespace Sabre {
 		void OnRender();
 
 		Entity AddEntity();
+		Entity AddEntityWithUUID(UUID uuid);
 		void DeleteEntity(Entity entity);
 
 		Entity GetEntity(UUID uuid);
+
+		void Clear();
 
 		template<typename T, typename... Args>
 		void AddComponent(Entity entity, Args&&... args);

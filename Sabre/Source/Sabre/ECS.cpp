@@ -47,6 +47,17 @@ namespace Sabre {
 		return entity;
 	}
 
+	Entity Scene::AddEntityWithUUID(UUID uuid)
+	{
+		Entity entity;
+		entity.Handle = Registry.create();
+		entity.Parent = this;
+
+		m_EntityUUIDMap[uuid] = entity.Handle;
+
+		return entity;
+	}
+
 	void Scene::DeleteEntity(Entity entity)
 	{
 		if (entity.Handle == entt::null)
@@ -70,6 +81,12 @@ namespace Sabre {
 	Entity Scene::GetEntity(UUID uuid)
 	{
 		return Entity(m_EntityUUIDMap[uuid], this);
+	}
+
+	void Scene::Clear()
+	{
+		Registry.clear();
+		m_EntityUUIDMap.clear();
 	}
 
 	std::vector<UUID> Scene::GetAllEntities()
@@ -110,7 +127,7 @@ namespace Sabre {
 
 	void TransformComponent::Serialize(json& j, UUID uuid, const TransformComponent& component)
 	{
-		j[std::to_string(uuid)]["TransformComponent"] = {
+		j["Entities"][std::to_string(uuid)]["TransformComponent"] = {
 			{ "Position", { component.Position.x, component.Position.y, component.Position.z } },
 			{ "Rotation", { component.Rotation.x, component.Rotation.y, component.Rotation.z } },
 			{ "Scale", { component.Scale.x, component.Scale.y, component.Scale.z } }
@@ -129,7 +146,7 @@ namespace Sabre {
 
 	void MeshComponent::Serialize(json& j, UUID uuid, const MeshComponent& component)
 	{
-		j[std::to_string(uuid)]["MeshComponent"] = {
+		j["Entities"][std::to_string(uuid)]["MeshComponent"] = {
 			{ "MeshPath", component.MeshPath },
 			{ "TexturePath", component.TexturePath },
 			{ "Smoothness", component.EntityMaterial.Smoothness },
@@ -163,7 +180,7 @@ namespace Sabre {
 
 	void TagComponent::Serialize(json& j, UUID uuid, const TagComponent& component)
 	{
-		j[std::to_string(uuid)]["TagComponent"] = {
+		j["Entities"][std::to_string(uuid)]["TagComponent"] = {
 			{ "Tag", component.Tag }
 		};
 	}

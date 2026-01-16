@@ -14,6 +14,7 @@ private:
 	void DrawImGui();
 
 	void Serialize();
+	void Deserialize();
 private:
 	std::string m_DefaultTag = "New Entity";
 	Sabre::SunLight m_SunLight;
@@ -22,6 +23,8 @@ private:
 	glm::vec4 m_ClearColour;
 	
 	Sabre::Scene m_Scene;
+
+	Sabre::UUID m_SelectedEntity = 0xFFFFFF;
 
 	ImFont* m_NormalFont;
 	ImFont* m_BoldFont;
