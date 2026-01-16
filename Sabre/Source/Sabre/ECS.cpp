@@ -108,6 +108,15 @@ namespace Sabre {
 		);
 	}
 
+	void TransformComponent::Serialize(json& j, UUID uuid, const TransformComponent& component)
+	{
+		j[std::to_string(uuid)]["TransformComponent"] = {
+			{ "Position", { component.Position.x, component.Position.y, component.Position.z } },
+			{ "Rotation", { component.Rotation.x, component.Rotation.y, component.Rotation.z } },
+			{ "Scale", { component.Scale.x, component.Scale.y, component.Scale.z } }
+		};
+	}
+
 	void TransformComponent::RenderImGui(TransformComponent& self, Project& project)
 	{
 		if (ImGui::CollapsingHeader("Transform Component"))
@@ -116,6 +125,16 @@ namespace Sabre {
 			InputVec3("Rotation ", (int32_t)(&self.Rotation), 0.001f, self.Rotation);
 			InputVec3("Scale ", (int32_t)(&self.Scale), 0.001f, self.Scale);
 		}
+	}
+
+	void MeshComponent::Serialize(json& j, UUID uuid, const MeshComponent& component)
+	{
+		j[std::to_string(uuid)]["MeshComponent"] = {
+			{ "MeshPath", component.MeshPath },
+			{ "TexturePath", component.TexturePath },
+			{ "Smoothness", component.EntityMaterial.Smoothness },
+			{ "Metallic", component.EntityMaterial.Metallic }
+		};
 	}
 
 	void MeshComponent::RenderImGui(MeshComponent& self, Project& project)
@@ -142,5 +161,11 @@ namespace Sabre {
 		}
 	}
 
+	void TagComponent::Serialize(json& j, UUID uuid, const TagComponent& component)
+	{
+		j[std::to_string(uuid)]["TagComponent"] = {
+			{ "Tag", component.Tag }
+		};
+	}
 
 }

@@ -169,7 +169,7 @@ void EditorLayer::OnInit()
 #ifdef API_GL41
 	ImGui_ImplOpenGL3_Init("#version 130");
 #endif
-	m_SunLight = Sabre::SunLight(glm::normalize(glm::vec3(0.3f, 1.0f, 0.5f)), glm::vec3(1, 1, 1), 2, 0.1f);
+	m_SunLight = Sabre::SunLight(glm::normalize(glm::vec3(0.3f, 1.0f, 0.5f)), glm::vec3(1, 1, 1), 1, 0.1f);
 	Sabre::SetSunLight(&m_SunLight);
 
 	Sabre::g_MainCamera = &m_Camera;
@@ -181,18 +181,88 @@ void EditorLayer::OnInit()
 
 void EditorLayer::OnUpdate()
 {
-	if (Sabre::Window::IsKeyDown(SABRE_KEY_D))
-		m_Camera.Position.x += 0.001f;
-	if (Sabre::Window::IsKeyDown(SABRE_KEY_A))
-		m_Camera.Position.x -= 0.001f;
-	if (Sabre::Window::IsKeyDown(SABRE_KEY_W))
-		m_Camera.Position.y += 0.001f;
-	if (Sabre::Window::IsKeyDown(SABRE_KEY_S))
-		m_Camera.Position.y -= 0.001f;
-	if (Sabre::Window::IsKeyDown(SABRE_KEY_Q))
-		m_Camera.Position.z -= 0.001f;
-	if (Sabre::Window::IsKeyDown(SABRE_KEY_E))
-		m_Camera.Position.z += 0.001f;
+	static float s_MouseSensitivity = 0.15f;
+	static float s_ScrollSpeed = 70.5f;
+	static bool s_FirstMouse = true;
+	static glm::vec2 s_LastMousePos(0.0f);
+	static bool s_FirstMouseRotate = true;
+	static bool s_FirstMousePan = true;
+
+	static glm::vec2 s_LastMousePosRotate(0.0f);
+	static glm::vec2 s_LastMousePosPan(0.0f);
+
+	if (Sabre::Window::IsMouseDown(SABRE_MOUSE_BUTTON_RIGHT))
+	{
+		auto pos = Sabre::Window::GetMousePosition();
+		glm::vec2 mousePos(pos.x, pos.y);
+
+		if (s_FirstMouseRotate)
+		{
+			s_LastMousePosRotate = mousePos;
+			s_FirstMouseRotate = false;
+		}
+
+		glm::vec2 delta = mousePos - s_LastMousePosRotate;
+		s_LastMousePosRotate = mousePos;
+
+		m_Camera.Rotation.y += delta.x * s_MouseSensitivity;
+		m_Camera.Rotation.x -= delta.y * s_MouseSensitivity;
+		m_Camera.Rotation.x = glm::clamp(m_Camera.Rotation.x, -89.0f, 89.0f);
+	}
+	else
+	{
+		s_FirstMouseRotate = true;
+	}
+
+
+	glm::vec3 eulerDegrees(
+		m_Camera.Rotation.x,
+		m_Camera.Rotation.y,
+		0.0f
+	);
+
+	glm::vec3 eulerRadians = glm::radians(eulerDegrees);
+
+	float pitch = eulerRadians.x;
+	float yaw = eulerRadians.y;
+
+	glm::vec3 forward;
+	forward.x = std::cos(pitch) * std::sin(yaw);
+	forward.y = std::sin(pitch);
+	forward.z = -std::cos(pitch) * std::cos(yaw);
+
+	forward = glm::normalize(forward);
+
+	glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
+
+	glm::vec3 right = glm::normalize(glm::cross(forward, worldUp));
+	glm::vec3 up = glm::normalize(glm::cross(right, forward));
+	static float s_PanSensitivity = 0.01f;
+
+	if (Sabre::Window::IsMouseDown(SABRE_MOUSE_BUTTON_MIDDLE))
+	{
+		auto pos = Sabre::Window::GetMousePosition();
+		glm::vec2 mousePos(pos.x, pos.y);
+
+		if (s_FirstMousePan)
+		{
+			s_LastMousePosPan = mousePos;
+			s_FirstMousePan = false;
+		}
+
+		glm::vec2 delta = mousePos - s_LastMousePosPan;
+		s_LastMousePosPan = mousePos;
+
+		m_Camera.Position -= right * delta.x * s_PanSensitivity;
+		m_Camera.Position += up    * delta.y * s_PanSensitivity;
+	}
+	else
+	{
+		s_FirstMousePan = true;
+	}
+
+	m_Camera.Position +=
+		forward * (float)Sabre::Window::GetScrollOffset() * s_ScrollSpeed * (float)Sabre::Window::GetDeltaTime();
 
 	m_Scene.OnUpdate();
 
@@ -219,6 +289,8 @@ void EditorLayer::DrawImGui()
 		{
 			if (ImGui::BeginMenu("Sabre"))
 			{
+				if (ImGui::MenuItem("Save"))
+					Serialize();
 				if (ImGui::MenuItem("Close"))
 					Sabre::Window::RequestQuit();
 				ImGui::EndMenu();
@@ -264,7 +336,7 @@ void EditorLayer::DrawImGui()
 			ImGui::DragFloat("###sabintlightm_Scene", &Sabre::GetSunLight()->Intensity, 0.01f, 0, 5);
 		}
 		else
-		{
+		{ 
 			ImGui::PopFont();
 		}
 
@@ -344,14 +416,18 @@ void EditorLayer::DrawImGui()
 
 		ImGui::Text("No project loaded! Please select one.");
 
-		char* bufP = m_CurrentProject.FilePath.string().data();
+		std::string filePathStr = m_CurrentProject.FilePath.string();
+		char bufP[260] = {};
+		std::strncpy(bufP, filePathStr.c_str(), sizeof(bufP) - 1);
 
 		ImGui::Text("Project Path "); ImGui::SameLine();
 		ImGui::InputText("###projpath", bufP, 260);
 
 		m_CurrentProject.FilePath = std::string(bufP);
 
-		char* bufN = m_CurrentProject.Name.data();
+		std::string nameStr = m_CurrentProject.Name.data();
+		char bufN[260] = {};
+		std::strncpy(bufN, nameStr.c_str(), sizeof(bufN) - 1);
 
 		ImGui::Text("Project Name "); ImGui::SameLine();
 		ImGui::InputText("###projnam", bufN, 260);
@@ -365,4 +441,36 @@ void EditorLayer::DrawImGui()
 
 		ImGui::End();
 	}
+}
+
+void EditorLayer::Serialize()
+{
+	json j;
+
+	// Serialize scene settings
+	j["SceneSettings"]["ClearColour"] = { m_ClearColour.r, m_ClearColour.g, m_ClearColour.b, m_ClearColour.a };
+	j["SceneSettings"]["Ambient"] = m_SunLight.AmbientIntensity;
+	j["SunLight"]["Colour"] = { Sabre::GetSunLight()->Colour.r, Sabre::GetSunLight()->Colour.g, Sabre::GetSunLight()->Colour.b };
+	j["SunLight"]["Direction"] = { Sabre::GetSunLight()->Direction.x, Sabre::GetSunLight()->Direction.y, Sabre::GetSunLight()->Direction.z };
+	j["SunLight"]["Intensity"] = Sabre::GetSunLight()->Intensity;
+
+	// Serialize entities
+	for (Sabre::UUID uuid : m_Scene.GetAllEntities())
+	{
+		Sabre::Entity entity = m_Scene.GetEntity(uuid);
+		auto& tc = m_Scene.GetComponent<Sabre::TagComponent>(entity);
+		tc.Serialize(j, uuid, tc);
+
+		auto& trc = m_Scene.GetComponent<Sabre::TransformComponent>(entity);
+		trc.Serialize(j, uuid, trc);
+
+		if (m_Scene.HasComponent<Sabre::MeshComponent>(entity))
+		{
+			auto& mc = m_Scene.GetComponent<Sabre::MeshComponent>(entity);
+			mc.Serialize(j, uuid, mc);
+		}
+	}
+
+	std::ofstream file = std::ofstream(m_CurrentProject.FilePath / (m_CurrentProject.Name + ".sabprj"));
+	file << std::setw(4) << j << std::endl;
 }

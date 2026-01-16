@@ -12,6 +12,9 @@
 
 #include "imgui/imgui.h"
 
+#include "json.hpp"
+using json = nlohmann::json;
+
 namespace Sabre {
 
 	using UUID = uint32_t;
@@ -29,13 +32,16 @@ namespace Sabre {
 		glm::vec3 Position;
 		glm::vec3 Rotation;
 		glm::vec3 Scale;
-
+		
+		static void Serialize(json& j, UUID uuid, const TransformComponent& component);
 		static void RenderImGui(TransformComponent& self, Project& project);
 	};
 
 	struct TagComponent
 	{
 		std::string Tag;
+
+		static void Serialize(json& j, UUID uuid, const TagComponent& component);
 	};
 
 	struct MeshComponent
@@ -53,6 +59,7 @@ namespace Sabre {
 			TexturePath = albedoPath.string();
 		}
 
+		static void Serialize(json& j, UUID uuid, const MeshComponent& component);
 		static void RenderImGui(MeshComponent& self, Project& project);
 	};
 

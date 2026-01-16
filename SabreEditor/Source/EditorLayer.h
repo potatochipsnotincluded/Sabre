@@ -12,6 +12,8 @@ public:
 	virtual void OnRender() override;
 private:
 	void DrawImGui();
+
+	void Serialize();
 private:
 	std::string m_DefaultTag = "New Entity";
 	Sabre::SunLight m_SunLight;
