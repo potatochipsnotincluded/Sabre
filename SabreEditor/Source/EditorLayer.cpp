@@ -169,34 +169,102 @@ void EditorLayer::OnInit()
 #ifdef API_GL41
 	ImGui_ImplOpenGL3_Init("#version 130");
 #endif
-	m_SunLight = Sabre::SunLight(glm::normalize(glm::vec3(0.3f, 1.0f, 0.5f)), glm::vec3(1, 1, 1), 2, 0.1f);
+	m_SunLight = Sabre::SunLight(glm::normalize(glm::vec3(0.3f, 1.0f, 0.5f)), glm::vec3(1, 1, 1), 1, 0.1f);
 	Sabre::SetSunLight(&m_SunLight);
 
 	Sabre::g_MainCamera = &m_Camera;
-
-	m_ClearColour = glm::vec4(0.02f, 0.025f, 0.035f, 1.0f);
 
 	m_Scene.OnInit();
 }
 
 void EditorLayer::OnUpdate()
 {
-	if (Sabre::Window::IsKeyDown(SABRE_KEY_D))
-		m_Camera.Position.x += 0.001f;
-	if (Sabre::Window::IsKeyDown(SABRE_KEY_A))
-		m_Camera.Position.x -= 0.001f;
-	if (Sabre::Window::IsKeyDown(SABRE_KEY_W))
-		m_Camera.Position.y += 0.001f;
-	if (Sabre::Window::IsKeyDown(SABRE_KEY_S))
-		m_Camera.Position.y -= 0.001f;
-	if (Sabre::Window::IsKeyDown(SABRE_KEY_Q))
-		m_Camera.Position.z -= 0.001f;
-	if (Sabre::Window::IsKeyDown(SABRE_KEY_E))
-		m_Camera.Position.z += 0.001f;
+	static float s_MouseSensitivity = 0.15f;
+	static float s_ScrollSpeed = 70.5f;
+	static bool s_FirstMouse = true;
+	static glm::vec2 s_LastMousePos(0.0f);
+	static bool s_FirstMouseRotate = true;
+	static bool s_FirstMousePan = true;
+
+	static glm::vec2 s_LastMousePosRotate(0.0f);
+	static glm::vec2 s_LastMousePosPan(0.0f);
+
+	if (Sabre::Window::IsMouseDown(SABRE_MOUSE_BUTTON_RIGHT))
+	{
+		auto pos = Sabre::Window::GetMousePosition();
+		glm::vec2 mousePos(pos.x, pos.y);
+
+		if (s_FirstMouseRotate)
+		{
+			s_LastMousePosRotate = mousePos;
+			s_FirstMouseRotate = false;
+		}
+
+		glm::vec2 delta = mousePos - s_LastMousePosRotate;
+		s_LastMousePosRotate = mousePos;
+
+		m_Camera.Rotation.y += delta.x * s_MouseSensitivity;
+		m_Camera.Rotation.x -= delta.y * s_MouseSensitivity;
+		m_Camera.Rotation.x = glm::clamp(m_Camera.Rotation.x, -89.0f, 89.0f);
+	}
+	else
+	{
+		s_FirstMouseRotate = true;
+	}
+
+
+	glm::vec3 eulerDegrees(
+		m_Camera.Rotation.x,
+		m_Camera.Rotation.y,
+		0.0f
+	);
+
+	glm::vec3 eulerRadians = glm::radians(eulerDegrees);
+
+	float pitch = eulerRadians.x;
+	float yaw = eulerRadians.y;
+
+	glm::vec3 forward;
+	forward.x = std::cos(pitch) * std::sin(yaw);
+	forward.y = std::sin(pitch);
+	forward.z = -std::cos(pitch) * std::cos(yaw);
+
+	forward = glm::normalize(forward);
+
+	glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
+
+	glm::vec3 right = glm::normalize(glm::cross(forward, worldUp));
+	glm::vec3 up = glm::normalize(glm::cross(right, forward));
+	static float s_PanSensitivity = 0.01f;
+
+	if (Sabre::Window::IsMouseDown(SABRE_MOUSE_BUTTON_MIDDLE))
+	{
+		auto pos = Sabre::Window::GetMousePosition();
+		glm::vec2 mousePos(pos.x, pos.y);
+
+		if (s_FirstMousePan)
+		{
+			s_LastMousePosPan = mousePos;
+			s_FirstMousePan = false;
+		}
+
+		glm::vec2 delta = mousePos - s_LastMousePosPan;
+		s_LastMousePosPan = mousePos;
+
+		m_Camera.Position -= right * delta.x * s_PanSensitivity;
+		m_Camera.Position += up    * delta.y * s_PanSensitivity;
+	}
+	else
+	{
+		s_FirstMousePan = true;
+	}
+
+	m_Camera.Position +=
+		forward * (float)Sabre::Window::GetScrollOffset() * s_ScrollSpeed * (float)Sabre::Window::GetDeltaTime();
 
 	m_Scene.OnUpdate();
 
-	Sabre::Renderer::ClearScreen(m_ClearColour);
+	Sabre::Renderer::ClearScreen(m_Scene.ClearColour);
 
 	DrawImGui();
 }
@@ -215,10 +283,17 @@ void EditorLayer::DrawImGui()
 		if (show_demo_window)
 			ImGui::ShowDemoWindow(&show_demo_window);
 
+		static bool s_OpenSavePopup = false;
+		static bool s_OpenLoadPopup = false;
+
 		if (ImGui::BeginMainMenuBar())
 		{
 			if (ImGui::BeginMenu("Sabre"))
 			{
+				if (ImGui::MenuItem("Save Level"))
+					s_OpenSavePopup = true;
+				if (ImGui::MenuItem("Load Level"))
+					s_OpenLoadPopup = true;
 				if (ImGui::MenuItem("Close"))
 					Sabre::Window::RequestQuit();
 				ImGui::EndMenu();
@@ -230,12 +305,59 @@ void EditorLayer::DrawImGui()
 				ImGui::EndMenu();
 			}
 
+
+
 			ImGui::EndMainMenuBar();
 		}
+		
+		if (s_OpenSavePopup)
+		{
+			ImGui::OpenPopup("SaveLevelPopup");
+			s_OpenSavePopup = false;
+		}
+
+		if (s_OpenLoadPopup)
+		{
+			ImGui::OpenPopup("LoadLevelPopup");
+			s_OpenLoadPopup = false;
+		}
+
+		if (ImGui::BeginPopupModal("SaveLevelPopup"))
+		{
+			static char scene[260] = {};
+			ImGui::Text("Scene"); ImGui::SameLine();
+			ImGui::InputText("###scenepath", scene, 260);
+
+			std::filesystem::path scenePath = std::string(scene);
+
+			if (ImGui::Button("Save!"))
+			{
+				m_Scene.Serialize(scenePath, m_CurrentProject);
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::EndPopup();
+		}
+
+		if (ImGui::BeginPopupModal("LoadLevelPopup"))
+		{
+			static char scene[260] = {};
+			ImGui::Text("Scene"); ImGui::SameLine();
+			ImGui::InputText("###scenepath", scene, 260);
+
+			std::filesystem::path scenePath = std::string(scene);
+
+			if (ImGui::Button("Load!"))
+			{
+				m_Scene.Deserialize(scenePath, m_CurrentProject);
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::EndPopup();
+		}
+
 
 		ImGui::Begin("Scene Settings");
 
-		float colour[4] = { m_ClearColour.r, m_ClearColour.g, m_ClearColour.b, m_ClearColour.a };
+		float colour[4] = { m_Scene.ClearColour.r, m_Scene.ClearColour.g, m_Scene.ClearColour.b, m_Scene.ClearColour.a };
 
 		ImGui::Text("Clear Colour: ");
 		ImGui::SameLine();
@@ -245,10 +367,10 @@ void EditorLayer::DrawImGui()
 		ImGui::SameLine();
 		ImGui::DragFloat("###m_Sceneambient", &m_SunLight.AmbientIntensity, 0.025f);
 
-		m_ClearColour.r = colour[0];
-		m_ClearColour.g = colour[1];
-		m_ClearColour.b = colour[2];
-		m_ClearColour.a = colour[3];
+		m_Scene.ClearColour.r = colour[0];
+		m_Scene.ClearColour.g = colour[1];
+		m_Scene.ClearColour.b = colour[2];
+		m_Scene.ClearColour.a = colour[3];
 
 		ImGui::PushFont(m_BoldFont);
 		if (ImGui::CollapsingHeader("Sun Light"))
@@ -264,13 +386,12 @@ void EditorLayer::DrawImGui()
 			ImGui::DragFloat("###sabintlightm_Scene", &Sabre::GetSunLight()->Intensity, 0.01f, 0, 5);
 		}
 		else
-		{
+		{ 
 			ImGui::PopFont();
 		}
 
 		ImGui::End();
 
-		static Sabre::UUID selectedEntity = 0xFFFFFF;
 		ImGui::PushFont(m_NormalFont);
 
 		ImGui::Begin("Scene");
@@ -282,9 +403,9 @@ void EditorLayer::DrawImGui()
 
 			ImGui::PushID(entity);
 
-			if (ImGui::Selectable(tag.c_str(), entity == selectedEntity))
+			if (ImGui::Selectable(tag.c_str(), entity == m_SelectedEntity))
 			{
-				selectedEntity = entity;
+				m_SelectedEntity = entity;
 			}
 			ImGui::PopID();
 
@@ -295,11 +416,11 @@ void EditorLayer::DrawImGui()
 
 		ImGui::Begin("Inspector");
 
-		if (selectedEntity != 0xFFFFFF)
+		if (m_SelectedEntity != 0xFFFFFF)
 		{
 			ImGui::PushFont(m_BoldFont);
 
-			Sabre::Entity asEntity = m_Scene.GetEntity(selectedEntity);
+			Sabre::Entity asEntity = m_Scene.GetEntity(m_SelectedEntity);
 			auto& tagC = m_Scene.GetComponent<Sabre::TagComponent>(asEntity);
 
 			Sabre::InputChar("###sabentitytag", &tagC.Tag);
@@ -329,7 +450,7 @@ void EditorLayer::DrawImGui()
 			{
 				if (ImGui::Button("Mesh Component"))
 				{
-					m_Scene.AddComponent<Sabre::MeshComponent>(asEntity, asEntity, "", "", 0, 0);
+					m_Scene.AddComponent<Sabre::MeshComponent>(asEntity, asEntity, m_CurrentProject.FilePath, "", "", 0, 0);
 				}
 
 				ImGui::EndPopup();
@@ -344,14 +465,18 @@ void EditorLayer::DrawImGui()
 
 		ImGui::Text("No project loaded! Please select one.");
 
-		char* bufP = m_CurrentProject.FilePath.string().data();
+		std::string filePathStr = m_CurrentProject.FilePath.string();
+		char bufP[260] = {};
+		std::strncpy(bufP, filePathStr.c_str(), sizeof(bufP) - 1);
 
 		ImGui::Text("Project Path "); ImGui::SameLine();
 		ImGui::InputText("###projpath", bufP, 260);
 
 		m_CurrentProject.FilePath = std::string(bufP);
 
-		char* bufN = m_CurrentProject.Name.data();
+		std::string nameStr = m_CurrentProject.Name.data();
+		char bufN[260] = {};
+		std::strncpy(bufN, nameStr.c_str(), sizeof(bufN) - 1);
 
 		ImGui::Text("Project Name "); ImGui::SameLine();
 		ImGui::InputText("###projnam", bufN, 260);

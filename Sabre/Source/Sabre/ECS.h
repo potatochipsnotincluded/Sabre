@@ -12,6 +12,9 @@
 
 #include "imgui/imgui.h"
 
+#include "json.hpp"
+using json = nlohmann::json;
+
 namespace Sabre {
 
 	using UUID = uint32_t;
@@ -29,13 +32,16 @@ namespace Sabre {
 		glm::vec3 Position;
 		glm::vec3 Rotation;
 		glm::vec3 Scale;
-
+		
+		static void Serialize(json& j, UUID uuid, const TransformComponent& component);
 		static void RenderImGui(TransformComponent& self, Project& project);
 	};
 
 	struct TagComponent
 	{
 		std::string Tag;
+
+		static void Serialize(json& j, UUID uuid, const TagComponent& component);
 	};
 
 	struct MeshComponent
@@ -48,11 +54,12 @@ namespace Sabre {
 		std::string MeshPath; // For editor use only
 		std::string TexturePath; // For editor use only
 
-		inline MeshComponent(Entity owner, const std::filesystem::path& meshPath, const std::filesystem::path& albedoPath, float metallic, float smoothness) : EntityMesh(LoadMesh(GetAssetFile(meshPath))), EntityMaterial(GetAssetFile(albedoPath), smoothness, metallic), Owner(owner) {
+		inline MeshComponent(Entity owner, const std::filesystem::path& project, const std::filesystem::path& meshPath, const std::filesystem::path& albedoPath, float metallic, float smoothness) : EntityMesh(LoadMesh(project / meshPath)), EntityMaterial(project / albedoPath, smoothness, metallic), Owner(owner) {
 			MeshPath = meshPath.string();
 			TexturePath = albedoPath.string();
 		}
 
+		static void Serialize(json& j, UUID uuid, const MeshComponent& component);
 		static void RenderImGui(MeshComponent& self, Project& project);
 	};
 
@@ -67,9 +74,15 @@ namespace Sabre {
 		void OnRender();
 
 		Entity AddEntity();
+		Entity AddEntityWithUUID(UUID uuid);
 		void DeleteEntity(Entity entity);
 
 		Entity GetEntity(UUID uuid);
+
+		void Clear();
+
+		void Serialize(const std::filesystem::path& scenePath, Project& project);
+		void Deserialize(const std::filesystem::path& scenePath, Project& project);
 
 		template<typename T, typename... Args>
 		void AddComponent(Entity entity, Args&&... args);
@@ -87,6 +100,8 @@ namespace Sabre {
 
 	public:
 		entt::registry Registry;
+
+		glm::vec4 ClearColour = glm::vec4(0.02f, 0.025f, 0.035f, 1.0f);
 	private:
 		template <typename T>
 		void InitComponentType();

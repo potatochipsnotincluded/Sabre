@@ -47,6 +47,17 @@ namespace Sabre {
 		return entity;
 	}
 
+	Entity Scene::AddEntityWithUUID(UUID uuid)
+	{
+		Entity entity;
+		entity.Handle = Registry.create();
+		entity.Parent = this;
+
+		m_EntityUUIDMap[uuid] = entity.Handle;
+
+		return entity;
+	}
+
 	void Scene::DeleteEntity(Entity entity)
 	{
 		if (entity.Handle == entt::null)
@@ -70,6 +81,109 @@ namespace Sabre {
 	Entity Scene::GetEntity(UUID uuid)
 	{
 		return Entity(m_EntityUUIDMap[uuid], this);
+	}
+
+	void Scene::Clear()
+	{
+		Registry.clear();
+		m_EntityUUIDMap.clear();
+	}
+
+	void Scene::Serialize(const std::filesystem::path& scenePath, Project& project)
+	{
+		json j;
+
+		j["SceneSettings"]["ClearColour"] = { ClearColour.r, ClearColour.g, ClearColour.b, ClearColour.a };
+		j["SceneSettings"]["Ambient"] = Sabre::GetSunLight()->AmbientIntensity;
+		j["SunLight"]["Colour"] = { Sabre::GetSunLight()->Colour.r, Sabre::GetSunLight()->Colour.g, Sabre::GetSunLight()->Colour.b };
+		j["SunLight"]["Direction"] = { Sabre::GetSunLight()->Direction.x, Sabre::GetSunLight()->Direction.y, Sabre::GetSunLight()->Direction.z };
+		j["SunLight"]["Intensity"] = Sabre::GetSunLight()->Intensity;
+
+		for (Sabre::UUID uuid : GetAllEntities())
+		{
+			Sabre::Entity entity = GetEntity(uuid);
+			auto& tc = GetComponent<Sabre::TagComponent>(entity);
+			tc.Serialize(j, uuid, tc);
+
+			auto& trc = GetComponent<Sabre::TransformComponent>(entity);
+			trc.Serialize(j, uuid, trc);
+
+			if (HasComponent<Sabre::MeshComponent>(entity))
+			{
+				auto& mc = GetComponent<Sabre::MeshComponent>(entity);
+				mc.Serialize(j, uuid, mc);
+			}
+		}
+
+		std::ofstream file = std::ofstream(project.FilePath / scenePath);
+		file << std::setw(4) << j << std::endl;
+	}
+
+	void Scene::Deserialize(const std::filesystem::path& scenePath, Project& project)
+	{
+		json j;
+		std::ifstream i = std::ifstream(project.FilePath / scenePath);
+		i >> j;
+
+		Sabre::GetSunLight()->AmbientIntensity = j["SceneSettings"]["Ambient"];
+		ClearColour.r = j["SceneSettings"]["ClearColour"][0];
+		ClearColour.g = j["SceneSettings"]["ClearColour"][1];
+		ClearColour.b = j["SceneSettings"]["ClearColour"][2];
+		ClearColour.a = j["SceneSettings"]["ClearColour"][3];
+
+		Sabre::GetSunLight()->Colour.r = j["SunLight"]["Colour"][0];
+		Sabre::GetSunLight()->Colour.g = j["SunLight"]["Colour"][1];
+		Sabre::GetSunLight()->Colour.b = j["SunLight"]["Colour"][2];
+
+		Sabre::GetSunLight()->Direction.x = j["SunLight"]["Direction"][0];
+		Sabre::GetSunLight()->Direction.y = j["SunLight"]["Direction"][1];
+		Sabre::GetSunLight()->Direction.z = j["SunLight"]["Direction"][2];
+		Sabre::GetSunLight()->Intensity = j["SunLight"]["Intensity"];
+
+		Clear();
+
+		std::vector<std::string> entityList;
+		for (auto it = j["Entities"].begin(); it != j["Entities"].end(); ++it)
+		{
+			entityList.push_back(it.key());
+		}
+
+		for (std::string uuidStr : entityList)
+		{
+			Sabre::UUID uuid = std::stoul(uuidStr);
+
+			Sabre::Entity entity = AddEntityWithUUID(uuid);
+			AddComponent<Sabre::TagComponent>(entity, j["Entities"][std::to_string(uuid)]["TagComponent"]["Tag"].get<std::string>());
+
+			AddComponent<Sabre::TransformComponent>(entity, glm::vec3(), glm::vec3(), glm::vec3());
+			auto& trc = GetComponent<Sabre::TransformComponent>(entity);
+			trc.Position = glm::vec3(
+				j["Entities"][std::to_string(uuid)]["TransformComponent"]["Position"][0],
+				j["Entities"][std::to_string(uuid)]["TransformComponent"]["Position"][1],
+				j["Entities"][std::to_string(uuid)]["TransformComponent"]["Position"][2]
+			);
+
+			trc.Rotation = glm::vec3(
+				j["Entities"][std::to_string(uuid)]["TransformComponent"]["Rotation"][0],
+				j["Entities"][std::to_string(uuid)]["TransformComponent"]["Rotation"][1],
+				j["Entities"][std::to_string(uuid)]["TransformComponent"]["Rotation"][2]
+			);
+
+			trc.Scale = glm::vec3(
+				j["Entities"][std::to_string(uuid)]["TransformComponent"]["Scale"][0],
+				j["Entities"][std::to_string(uuid)]["TransformComponent"]["Scale"][1],
+				j["Entities"][std::to_string(uuid)]["TransformComponent"]["Scale"][2]
+			);
+
+			if (j["Entities"][std::to_string(uuid)].contains("MeshComponent"))
+			{
+				AddComponent<Sabre::MeshComponent>(entity, entity, project.FilePath,
+					j["Entities"][std::to_string(uuid)]["MeshComponent"]["MeshPath"].get<std::string>(),
+					j["Entities"][std::to_string(uuid)]["MeshComponent"]["TexturePath"].get<std::string>(),
+					j["Entities"][std::to_string(uuid)]["MeshComponent"]["Metallic"].get<float>(),
+					j["Entities"][std::to_string(uuid)]["MeshComponent"]["Smoothness"].get<float>());
+			}
+		}
 	}
 
 	std::vector<UUID> Scene::GetAllEntities()
@@ -108,6 +222,15 @@ namespace Sabre {
 		);
 	}
 
+	void TransformComponent::Serialize(json& j, UUID uuid, const TransformComponent& component)
+	{
+		j["Entities"][std::to_string(uuid)]["TransformComponent"] = {
+			{ "Position", { component.Position.x, component.Position.y, component.Position.z } },
+			{ "Rotation", { component.Rotation.x, component.Rotation.y, component.Rotation.z } },
+			{ "Scale", { component.Scale.x, component.Scale.y, component.Scale.z } }
+		};
+	}
+
 	void TransformComponent::RenderImGui(TransformComponent& self, Project& project)
 	{
 		if (ImGui::CollapsingHeader("Transform Component"))
@@ -116,6 +239,16 @@ namespace Sabre {
 			InputVec3("Rotation ", (int32_t)(&self.Rotation), 0.001f, self.Rotation);
 			InputVec3("Scale ", (int32_t)(&self.Scale), 0.001f, self.Scale);
 		}
+	}
+
+	void MeshComponent::Serialize(json& j, UUID uuid, const MeshComponent& component)
+	{
+		j["Entities"][std::to_string(uuid)]["MeshComponent"] = {
+			{ "MeshPath", component.MeshPath },
+			{ "TexturePath", component.TexturePath },
+			{ "Smoothness", component.EntityMaterial.Smoothness },
+			{ "Metallic", component.EntityMaterial.Metallic }
+		};
 	}
 
 	void MeshComponent::RenderImGui(MeshComponent& self, Project& project)
@@ -142,5 +275,11 @@ namespace Sabre {
 		}
 	}
 
+	void TagComponent::Serialize(json& j, UUID uuid, const TagComponent& component)
+	{
+		j["Entities"][std::to_string(uuid)]["TagComponent"] = {
+			{ "Tag", component.Tag }
+		};
+	}
 
 }
