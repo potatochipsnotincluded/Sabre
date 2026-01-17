@@ -12,15 +12,10 @@ public:
 	virtual void OnRender() override;
 private:
 	void DrawImGui();
-
-	void Serialize(const std::filesystem::path& scenePath);
-	void Deserialize(const std::filesystem::path& scenePath);
 private:
 	std::string m_DefaultTag = "New Entity";
 	Sabre::SunLight m_SunLight;
 	Sabre::Camera m_Camera;
-
-	glm::vec4 m_ClearColour;
 	
 	Sabre::Scene m_Scene;
 

@@ -81,6 +81,9 @@ namespace Sabre {
 
 		void Clear();
 
+		void Serialize(const std::filesystem::path& scenePath, Project& project);
+		void Deserialize(const std::filesystem::path& scenePath, Project& project);
+
 		template<typename T, typename... Args>
 		void AddComponent(Entity entity, Args&&... args);
 
@@ -97,6 +100,8 @@ namespace Sabre {
 
 	public:
 		entt::registry Registry;
+
+		glm::vec4 ClearColour = glm::vec4(0.02f, 0.025f, 0.035f, 1.0f);
 	private:
 		template <typename T>
 		void InitComponentType();
