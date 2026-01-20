@@ -25,6 +25,8 @@ namespace Sabre {
 			layer->OnInit();
 		while (!Sabre::Window::ShouldClose())
 		{
+			Sabre::Window::BeginFrame();
+
 #ifdef API_GL41
 			ImGui_ImplOpenGL3_NewFrame();
 #endif
